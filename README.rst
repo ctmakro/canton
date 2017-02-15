@@ -32,4 +32,4 @@ pip install canton
 Usage
 ======
 
-Check `this tutorial<https://github.com/ctmakro/canton/blob/master/tutorial.ipynb>`_.
+Check `this tutorial <https://github.com/ctmakro/canton/blob/master/tutorial.ipynb>`_.
