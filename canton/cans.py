@@ -56,7 +56,10 @@ class Can:
 
     # return weight tensors of current can and it's subcans
     def get_weights(self):
-        return self.traverse('weights')
+        return list(flatten(self.traverse('weights'),
+            lambda x:isinstance(x,list)))
+            # the flatten logic is a little bit dirty
+
     # return update operations of current can and it's subcans
     def get_updates(self):
         return self.traverse('updates')
@@ -89,15 +92,10 @@ class Can:
 
     def load_weights(self,filename):
         with open(filename,'rb') as f:
-            w = np.load(f)
+            loaded_w = np.load(f)
             print('successfully loaded from',filename)
             # but we cannot assign all those weights in one go...
-            loaded_w = list(flatten(w,
-                lambda x:x.dtype.hasobject))
-            model_w = list(flatten(self.get_weights(),
-                lambda x:isinstance(x,list)))
-            # the flatten logic is a little bit dirty
-
+            model_w = self.get_weights()
             if len(loaded_w)!=len(model_w):
                 raise NameError('number of weights (variables) from the file({}) differ from the model({}).'.format(len(loaded_w),len(model_w)))
             else:
