@@ -16,7 +16,7 @@ class Can:
     def __init__(self):
         self.subcans = [] # other cans contained
         self.weights = [] # trainable
-        self.variables = [] # updatable, but not trainable
+        self.variables = [] # should save with the weights, but not trainable
         self.updates = [] # update ops, mainly useful for batch norm
         # well, you decide which one to put into
 
@@ -48,17 +48,18 @@ class Can:
         # return self
 
     # traverse the tree of all subcans,
-    # and extract a nested list of certain attribute.
+    # and extract a flattened list of certain attributes.
     # the attribute itself should be a list, such as 'weights'.
     # f is the transformer function, applied to every entry
     def traverse(self,target='weights',f=lambda x:x):
-        return [f(a) for a in getattr(self,target)] + [c.traverse(target,f) for c in self.subcans]
+        l = [f(a) for a in getattr(self,target)] + [c.traverse(target,f) for c in self.subcans]
+        # the flatten logic is a little bit dirty
+        return list(flatten(l, lambda x:isinstance(x,list)))
 
     # return weight tensors of current can and it's subcans
     def get_weights(self):
-        return list(flatten(self.traverse('weights'),
-            lambda x:isinstance(x,list)))
-            # the flatten logic is a little bit dirty
+        weights = self.traverse('weights')
+        return weights
 
     # return update operations of current can and it's subcans
     def get_updates(self):
@@ -75,17 +76,16 @@ class Can:
         else:
             raise NameError('You didnt override __call__() nor call set_function()')
 
-    def get_weights_value(self):
+    def get_value_of(self,tensors):
         sess = get_session()
-        w = self.get_weights()
-        w = sess.run(w)
-        return w
+        values = sess.run(tensors)
+        return values
 
-    def save_weights(self,filename):
+    def save_weights(self,filename): # save both weights and variables
         with open(filename,'wb') as f:
             # extract all weights in one go:
-            w = self.get_weights_value()
-            print('weights obtained.')
+            w = self.get_value_of(self.get_weights()+self.traverse('variables'))
+            print('weights (and variables) obtained.')
             np.save(f,w)
             print('successfully saved to',filename)
             return True
@@ -95,7 +95,7 @@ class Can:
             loaded_w = np.load(f)
             print('successfully loaded from',filename)
             # but we cannot assign all those weights in one go...
-            model_w = self.get_weights()
+            model_w = self.get_weights()+self.traverse('variables')
             if len(loaded_w)!=len(model_w):
                 raise NameError('number of weights (variables) from the file({}) differ from the model({}).'.format(len(loaded_w),len(model_w)))
             else:
