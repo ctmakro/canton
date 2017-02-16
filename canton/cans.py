@@ -140,6 +140,31 @@ class Conv2D(Can):
         else:
             return c
 
+# you know, Despicable Me
+# the weights are available only after at least one call.
+# this is the sloppy implementation from tensorflow
+# however it works so I'm not gonna dig into it
+
+class GRU(Can):
+    def __init__(self, n_h):
+        super().__init__()
+        name = 'GRU'+str(np.random.choice(9999999))
+        self.count = 0
+        self.name=name
+        with tf.variable_scope(self.name):
+            self.cell = tf.nn.rnn_cell.GRUCell(num_units=n_h)
+
+    def __call__(self,i):
+        with tf.variable_scope(self.name,reuse=True if self.count!=0 else False):
+            outputs, states = tf.nn.dynamic_rnn(
+                self.cell, inputs=i, dtype=tf.float32)
+        self.count+=1
+
+        # the weights are only initialized after calling.
+        weights = get_variables_of_scope('trainable_variables',self.name)
+        self.weights = weights
+        return outputs
+
 # you know, LeNet
 class AvgPool2D(Can):
     def __init__(self,k,std,padding='SAME'):

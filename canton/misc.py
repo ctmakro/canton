@@ -60,3 +60,7 @@ def set_variable(value,variable=None):
         variable = tf.Variable(initial_value=value)
         sess.run([tf.variables_initializer([variable])])
     return variable
+
+def get_variables_of_scope(collection_name,scope_name):
+    var_list = tf.get_collection(collection_name, scope=scope_name)
+    return var_list
