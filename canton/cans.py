@@ -132,6 +132,25 @@ class Dense(Can):
         d = tf.matmul(i,W)+b
         return d
 
+# you know, shorthand
+class Lambda(Can):
+    def __init__(self,f):
+        super().__init__()
+        self.set_function(f)
+
+# you know, nonlinearities
+class Act(Can):
+    def __init__(self,name):
+        super().__init__()
+        activations = {
+            'relu':tf.nn.relu,
+            'tanh':tf.tanh,
+            'sigmoid':tf.sigmoid,
+            'softmax':tf.nn.softmax,
+            'elu':tf.nn.elu
+        }
+        self.set_function(activations[name])
+
 # you know, Yann LeCun
 class Conv2D(Can):
     # nip and nop: input and output planes
@@ -193,11 +212,12 @@ class AvgPool2D(Can):
 # you know, He Kaiming
 class ResConv(Can): # v2
     def __init__(self,nip,nop,std=1):
+        super().__init__()
         # create the necessary cans:
-        nbp4 = int(max(nip,nop)/4) # bottleneck
-        direct_sum = nip==nop and std==1 # if no downsampling and feature shrinking
+        nbp = int(max(nip,nop)/4) # bottleneck
+        self.direct_sum = nip==nop and std==1 # if no downsampling and feature shrinking
 
-        if direct_sum:
+        if self.direct_sum:
             self.convs = [Conv2D(nip,nbp,1),Conv2D(nbp,nbp,3),Conv2D(nbp,nop,1)]
         else:
             self.convs = [Conv2D(nip,nbp,1,std=std),Conv2D(nbp,nbp,3),
@@ -211,7 +231,7 @@ class ResConv(Can): # v2
             relu = tf.nn.relu
             return bn(relu(i))
 
-        if direct_sum:
+        if self.direct_sum:
             ident = i
             i = bnr(i)
             i = self.convs[0](i)
