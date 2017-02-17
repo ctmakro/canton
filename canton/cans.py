@@ -47,6 +47,20 @@ class Can:
             self.subcans += [c]
         # return self
 
+    # another name for incan
+    def add(self,c):
+        self.incan(c)
+        return c
+
+    # if you don't wanna specify the __call__ function manually,
+    # you may chain up all the subcans to make one:
+    def chain(self):
+        def call(i):
+            for c in self.subcans:
+                i = c(i)
+            return i
+        self.set_function(call)
+
     # traverse the tree of all subcans,
     # and extract a flattened list of certain attributes.
     # the attribute itself should be a list, such as 'weights'.
@@ -74,7 +88,7 @@ class Can:
         if hasattr(self,'func'):
             return self.func(i)
         else:
-            raise NameError('You didnt override __call__() nor call set_function()')
+            raise NameError('You didnt override __call__(), nor called set_function()/chain()')
 
     def get_value_of(self,tensors):
         sess = get_session()
