@@ -20,6 +20,8 @@ class Can:
         self.updates = [] # update ops, mainly useful for batch norm
         # well, you decide which one to put into
 
+        self.inference = None
+
     # by making weight, you create trainable variables
     def make_weight(self,shape):
         initial = tf.truncated_normal(shape, stddev=0.1)
@@ -120,6 +122,28 @@ class Can:
             sess.run(assign_ops)
             print(len(loaded_w),'weights assigned.')
             return True
+
+    def infer(self,i):
+        # run function, return value
+        if self.inference is None:
+            if isinstance(i,list):
+                x = [tf.placeholder(tf.float32,shape=[None] +
+                    list(j.shape)[1:]) for j in i]
+            else:
+                x = tf.placeholder(tf.float32, shape=[None] + list(i.shape)[1:])
+            y = self.__call__(x)
+            def inference(k):
+                sess = get_session()
+                if isinstance(i,list):
+                    res = sess.run(y,feed_dict={x[j]:k[j]
+                        for j,_ in enumerate(x)})
+                else:
+                    res = sess.run(y,feed_dict={x:k})
+                return res
+            self.inference = inference
+
+        return self.inference(i)
+
 
 # you know, MLP
 class Dense(Can):
