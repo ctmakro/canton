@@ -4,7 +4,7 @@ Canton
 
 The Canton library is a lightweight wrapper around TensorFlow, focused on **intuitive programmatical modeling and weight sharing**.
 
-Canton is named after the city of Guangzhou. The French came a long time ago; they used to call this city "Canton", which sounds like "Guangdong" when pronounced in French, which is actually the name of the province, not the city. Since then, all westerners start to use the word Canton. The Yue language, a dialect of Chinese commonly used in Guangzhou and the United States, is known as "Cantonese" in English for this reason.
+    Canton is named after the city of Guangzhou. The French came a long time ago; they used to call this city "Canton", which sounds like "Guangdong" when pronounced in French, which is actually the name of the province, not the city. Since then, all westerners start to use the word Canton. The Yue language, a dialect of Chinese commonly used in Guangzhou and the United States, is known as "Cantonese" in English for this reason.
 
 The Canton Philosophy
 =====================
@@ -28,6 +28,13 @@ Install
 =======
 
 pip install canton
+
+Support Python 3 only.
+
+dependencies:
+
+- tensorflow-1.0.0
+
 
 Usage
 =====
