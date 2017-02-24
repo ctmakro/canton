@@ -24,7 +24,7 @@ class Can:
 
     # by making weight, you create trainable variables
     def make_weight(self,shape):
-        initial = tf.truncated_normal(shape, stddev=0.1)
+        initial = tf.truncated_normal(shape, stddev=1e-3)
         w = tf.Variable(initial,name='W')
         self.weights.append(w)
         return w
@@ -147,14 +147,18 @@ class Can:
 
 # you know, MLP
 class Dense(Can):
-    def __init__(self,num_inputs,num_outputs):
+    def __init__(self,num_inputs,num_outputs,bias=True):
         super().__init__()
         self.W = self.make_weight([num_inputs,num_outputs])
-        self.b = self.make_bias([num_outputs])
+        self.use_bias = bias
+        if bias:
+            self.b = self.make_bias([num_outputs])
     def __call__(self,i):
-        W,b = self.W,self.b
-        d = tf.matmul(i,W)+b
-        return d
+        d = tf.matmul(i,self.W)
+        if self.use_bias:
+            return d + self.b
+        else:
+            return d
 
 # you know, shorthand
 class Lambda(Can):
@@ -197,30 +201,68 @@ class Conv2D(Can):
         else:
             return c
 
-# you know, Despicable Me
-# the weights are available only after at least one call.
-# this is the sloppy implementation from tensorflow
-# however it works so I'm not gonna dig into it
-
-class GRU(Can):
-    def __init__(self, n_h):
+# you know, recurrency
+class Scanner(Can):
+    def __init__(self,f):
         super().__init__()
-        name = 'GRU'+str(np.random.choice(9999999))
-        self.count = 0
-        self.name=name
-        with tf.variable_scope(self.name):
-            self.cell = tf.nn.rnn_cell.GRUCell(num_units=n_h)
+        self.f = f
+    def __call__(self,i,starting_state=None):
+        # previous state is useful when running online.
+        if starting_state is None:
+            initializer = tf.zeros_like(i[0])
+        else:
+            initializer = starting_state
+        scanned = tf.scan(self.f,i,initializer=initializer)
+        return scanned
+
+# deal with batch input.
+class BatchScanner(Scanner):
+    def __call__(self, i, starting_state=None):
+        it = tf.transpose(i, perm=[1,0,2])
+        #[Batch, Seq, Dim] -> [Seq, Batch, Dim]
+        scanned = super().__call__(it, starting_state=starting_state)
+        scanned = tf.transpose(scanned, perm=[1,0,2])
+        return scanned
+
+# single forward pass version of GRU. Normally we don't use this directly
+class GRU_onepass(Can):
+    def __init__(self,num_in,num_h):
+        super().__init__()
+        # assume input is num_h d.
+        self.wz = Dense(num_in+num_h,num_h,bias=False)
+        self.wr = Dense(num_in+num_h,num_h,bias=False)
+        self.w = Dense(num_in+num_h,num_h,bias=False)
+        self.incan([self.wz,self.wr,self.w])
+        # http://colah.github.io/posts/2015-08-Understanding-LSTMs/
 
     def __call__(self,i):
-        with tf.variable_scope(self.name,reuse=True if self.count!=0 else False):
-            outputs, states = tf.nn.dynamic_rnn(
-                self.cell, inputs=i, dtype=tf.float32)
-        self.count+=1
+        # assume hidden, input is of shape [batch,num_h] and [batch,num_h]
+        hidden = i[0]
+        inp = i[1]
+        wz,wr,w = self.wz,self.wr,self.w
+        c = tf.concat([hidden,inp],axis=1)
+        z = tf.sigmoid(wz(c))
+        r = tf.sigmoid(wr(c))
+        h_c = tf.tanh(w(tf.concat([hidden*r,inp],axis=1)))
+        h_new = (1-z) * hidden + z * h_c
+        return h_new
 
-        # the weights are only initialized after calling.
-        weights = get_variables_of_scope('trainable_variables',self.name)
-        self.weights = weights
-        return outputs
+# rnn generator from cells, similar to tf.nn.dynamic_rnn
+def rnn_gen(unit_class):
+    class RNN(Can):
+        def __init__(self,*args):
+            super().__init__()
+            self.unit = unit_class(*args)
+            def f(last_state, new_input):
+                return self.unit([last_state, new_input])
+            self.bscan = BatchScanner(f)
+            self.incan([self.unit,self.bscan])
+        def __call__(self,i,*args):
+            return self.bscan(i,*args)
+    return RNN
+
+# you know, Despicable Me
+GRU = rnn_gen(GRU_onepass)
 
 # you know, LeNet
 class AvgPool2D(Can):
