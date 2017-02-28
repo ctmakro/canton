@@ -247,8 +247,8 @@ class GRU_onepass(Can):
         h_new = (1-z) * hidden + z * h_c
         return h_new
 
-# rnn generator from cells, similar to tf.nn.dynamic_rnn
-def rnn_gen(unit_class):
+# RNN Can generator from cells, similar to tf.nn.dynamic_rnn
+def rnn_gen(name, unit_class):
     class RNN(Can):
         def __init__(self,*args):
             super().__init__()
@@ -259,10 +259,32 @@ def rnn_gen(unit_class):
             self.incan([self.unit,self.bscan])
         def __call__(self,i,*args):
             return self.bscan(i,*args)
+    RNN.__name__ = name
     return RNN
 
 # you know, Despicable Me
-GRU = rnn_gen(GRU_onepass)
+GRU = rnn_gen('GRU', GRU_onepass)
+
+
+# class GRU(Can):
+#     def __init__(self, n_h):
+#         super().__init__()
+#         name = 'GRU'+str(np.random.choice(9999999))
+#         self.count = 0
+#         self.name=name
+#         with tf.variable_scope(self.name):
+#             self.cell = tf.contrib.rnn.GRUCell(num_units=n_h)
+#
+#     def __call__(self,i):
+#         with tf.variable_scope(self.name,reuse=True if self.count!=0 else False):
+#             outputs, states = tf.nn.dynamic_rnn(
+#                 self.cell, inputs=i, dtype=tf.float32)
+#         self.count+=1
+#
+#         # the weights are only initialized after calling.
+#         weights = get_variables_of_scope('trainable_variables',self.name)
+#         self.weights = weights
+#         return outputs
 
 # you know, LeNet
 class AvgPool2D(Can):
