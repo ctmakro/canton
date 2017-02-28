@@ -127,12 +127,15 @@ class Can:
         # run function, return value
         if self.inference is None:
             # the inference graph will be created when you infer for the first time
-            if isinstance(i,list):
-                x = [tf.placeholder(tf.float32,shape=[None] +
-                    list(j.shape)[1:]) for j in i]
+            # 1. create placeholders with same dimensions as the input
+            if isinstance(i,list): # if Can accept more than one input
+                x = [tf.placeholder(tf.float32,shape=[None for _ in range(len(j.shape))])
+                    for j in i]
             else:
-                x = tf.placeholder(tf.float32, shape=[None] + list(i.shape)[1:])
+                x = tf.placeholder(tf.float32, shape=[None for _ in range(len(i.shape))])
             y = self.__call__(x)
+
+            # 2. create the inference function
             def inference(k):
                 sess = get_session()
                 if isinstance(i,list):
