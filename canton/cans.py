@@ -126,6 +126,7 @@ class Can:
     def infer(self,i):
         # run function, return value
         if self.inference is None:
+            # the inference graph will be created when you infer for the first time
             if isinstance(i,list):
                 x = [tf.placeholder(tf.float32,shape=[None] +
                     list(j.shape)[1:]) for j in i]
@@ -209,7 +210,7 @@ class Scanner(Can):
     def __call__(self,i,starting_state=None):
         # previous state is useful when running online.
         if starting_state is None:
-            initializer = tf.zeros_like(i[0])
+            initializer = tf.zeros_like(i[0]) # zero as prev state
         else:
             initializer = starting_state
         scanned = tf.scan(self.f,i,initializer=initializer)
@@ -264,27 +265,6 @@ def rnn_gen(name, unit_class):
 
 # you know, Despicable Me
 GRU = rnn_gen('GRU', GRU_onepass)
-
-
-# class GRU(Can):
-#     def __init__(self, n_h):
-#         super().__init__()
-#         name = 'GRU'+str(np.random.choice(9999999))
-#         self.count = 0
-#         self.name=name
-#         with tf.variable_scope(self.name):
-#             self.cell = tf.contrib.rnn.GRUCell(num_units=n_h)
-#
-#     def __call__(self,i):
-#         with tf.variable_scope(self.name,reuse=True if self.count!=0 else False):
-#             outputs, states = tf.nn.dynamic_rnn(
-#                 self.cell, inputs=i, dtype=tf.float32)
-#         self.count+=1
-#
-#         # the weights are only initialized after calling.
-#         weights = get_variables_of_scope('trainable_variables',self.name)
-#         self.weights = weights
-#         return outputs
 
 # you know, LeNet
 class AvgPool2D(Can):
