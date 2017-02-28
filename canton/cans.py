@@ -240,7 +240,7 @@ class GRU_onepass(Can):
         # http://colah.github.io/posts/2015-08-Understanding-LSTMs/
 
     def __call__(self,i):
-        # assume hidden, input is of shape [batch,num_h] and [batch,num_h]
+        # assume hidden, input is of shape [batch,num_h] and [batch,num_in]
         hidden = i[0]
         inp = i[1]
         wz,wr,w = self.wz,self.wr,self.w
