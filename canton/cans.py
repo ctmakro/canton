@@ -105,7 +105,7 @@ class Can:
         with open(filename,'wb') as f:
             # extract all weights in one go:
             w = self.get_value_of(self.get_weights()+self.traverse('variables'))
-            print('weights (and variables) obtained.')
+            print(len(w),'weights (and variables) obtained.')
             np.save(f,w)
             print('successfully saved to',filename)
             return True
