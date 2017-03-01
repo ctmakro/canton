@@ -86,9 +86,9 @@ class Can:
         self.func = func
 
     # default __call__
-    def __call__(self,i):
+    def __call__(self,i,*args,**kwargs):
         if hasattr(self,'func'):
-            return self.func(i)
+            return self.func(i,*args,**kwargs)
         else:
             raise NameError('You didnt override __call__(), nor called set_function()/chain()')
 
@@ -164,6 +164,17 @@ class Dense(Can):
         else:
             return d
 
+# apply Dense on last dimension of 1d input. equivalent to conv1d.
+class TimeDistributedDense(Dense):
+    def __call__(self,i):
+        s = tf.shape(i)
+        b,t,d = s[0],s[1],s[2]
+        i = tf.reshape(i,[b*t,d])
+        i = super().__call__(i)
+        d = tf.shape(i)[1]
+        i = tf.reshape(i,[b,t,d])
+        return i
+
 # you know, shorthand
 class Lambda(Can):
     def __init__(self,f):
@@ -210,10 +221,14 @@ class Scanner(Can):
     def __init__(self,f):
         super().__init__()
         self.f = f
-    def __call__(self,i,starting_state=None):
+    def __call__(self,i,starting_state=None, state_shape=None):
         # previous state is useful when running online.
         if starting_state is None:
-            initializer = tf.zeros_like(i[0]) # zero as prev state
+            if state_shape is None:
+                print('cannot infer state_shape. use shape of input[0] instead. please make sure the input to the Scanner has the same last dimension as the function being scanned.')
+                initializer = tf.zeros_like(i[0])
+            else:
+                initializer = tf.zeros(state_shape, tf.float32)
         else:
             initializer = starting_state
         scanned = tf.scan(self.f,i,initializer=initializer)
@@ -221,10 +236,10 @@ class Scanner(Can):
 
 # deal with batch input.
 class BatchScanner(Scanner):
-    def __call__(self, i, starting_state=None):
+    def __call__(self, i, **kwargs):
         it = tf.transpose(i, perm=[1,0,2])
         #[Batch, Seq, Dim] -> [Seq, Batch, Dim]
-        scanned = super().__call__(it, starting_state=starting_state)
+        scanned = super().__call__(it, **kwargs)
         scanned = tf.transpose(scanned, perm=[1,0,2])
         return scanned
 
@@ -232,7 +247,8 @@ class BatchScanner(Scanner):
 class GRU_onepass(Can):
     def __init__(self,num_in,num_h):
         super().__init__()
-        # assume input is num_h d.
+        # assume input has dimension num_in.
+        self.num_in,self.num_h = num_in, num_h
         self.wz = Dense(num_in+num_h,num_h,bias=False)
         self.wr = Dense(num_in+num_h,num_h,bias=False)
         self.w = Dense(num_in+num_h,num_h,bias=False)
@@ -261,8 +277,12 @@ def rnn_gen(name, unit_class):
                 return self.unit([last_state, new_input])
             self.bscan = BatchScanner(f)
             self.incan([self.unit,self.bscan])
-        def __call__(self,i,*args):
-            return self.bscan(i,*args)
+        def __call__(self,i,**kwargs):
+            # given input, what should be the shape of the state?
+            s = tf.shape(i) #[batch, timesteps, dim]
+            state_shape = [s[0], self.unit.num_h] # [batch, hidden_dim]
+
+            return self.bscan(i,state_shape=state_shape, **kwargs)
     RNN.__name__ = name
     return RNN
 

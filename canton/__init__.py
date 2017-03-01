@@ -1,3 +1,3 @@
-from .cans import Can, Conv2D, Dense, AvgPool2D, ResConv, GRU, Lambda, Act, Scanner, BatchScanner, rnn_gen
+from .cans import Can, Conv2D, Dense, TimeDistributedDense, AvgPool2D, ResConv, GRU, Lambda, Act, Scanner, BatchScanner, rnn_gen
 from .misc import get_session, set_session, set_variable
 from .objectives import mean_softmax_cross_entropy, one_hot_accuracy
