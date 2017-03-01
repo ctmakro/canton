@@ -1,6 +1,7 @@
 import tensorflow as tf
 import os
 _SESSION = None
+_TRAINING = True
 
 def flatten(items,enter=lambda x:isinstance(x, list)):
     # http://stackoverflow.com/a/40857703
@@ -47,6 +48,14 @@ def set_session(session):
     global _SESSION
     _SESSION = session
 
+def set_training_state(state=True):
+    global _TRAINING
+    _TRAINING = state
+
+def get_training_state():
+    global _TRAINING
+    return _TRAINING
+
 def set_variable(value,variable=None):
     """Load some value into session memory by creating a new variable.
     If an existing variable is given, load the value into the given variable.
@@ -64,3 +73,6 @@ def set_variable(value,variable=None):
 def get_variables_of_scope(collection_name,scope_name):
     var_list = tf.get_collection(collection_name, scope=scope_name)
     return var_list
+
+def ph(shape,*args,**kwargs):
+    return tf.placeholder(tf.float32,shape=[None]+shape,*args,**kwargs)
