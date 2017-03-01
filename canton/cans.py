@@ -23,15 +23,15 @@ class Can:
         self.inference = None
 
     # by making weight, you create trainable variables
-    def make_weight(self,shape):
-        initial = tf.truncated_normal(shape, stddev=1e-3)
-        w = tf.Variable(initial,name='W')
+    def make_weight(self,shape,name='W',bias=0.):
+        initial = tf.truncated_normal(shape, mean=bias, stddev=1e-3)
+        w = tf.Variable(initial,name=name)
         self.weights.append(w)
         return w
 
-    def make_bias(self,shape):
-        initial = tf.constant(0.0, shape=shape)
-        b = tf.Variable(initial,name='b')
+    def make_bias(self,shape,name='b',bias=0.):
+        initial = tf.constant(bias, shape=shape)
+        b = tf.Variable(initial,name=name)
         self.weights.append(b)
         return b
 
@@ -40,6 +40,11 @@ class Can:
         v = tf.Variable(nparray,name=name)
         self.variables.append(v)
         return v
+
+    # add an op as update op of this can
+    def make_update(self,op):
+        self.updates.append(op)
+        return op
 
     # put other cans inside this can, as subcans
     def incan(self,c):
@@ -132,9 +137,13 @@ class Can:
                     for j in i]
             else:
                 x = tf.placeholder(tf.float32, shape=[None for _ in range(len(i.shape))])
-            y = self.__call__(x)
 
-            # 2. create the inference function
+            # 2. set training state to false, construct the graph
+            set_training_state(False)
+            y = self.__call__(x)
+            set_training_state(True)
+
+            # 3. create the inference function
             def inference(k):
                 sess = get_session()
                 if isinstance(i,list):
@@ -207,6 +216,15 @@ class Lambda(Can):
         super().__init__()
         self.set_function(f)
 
+# you know, to fit
+class Reshape(Can):
+    def __init__(self,shape):
+        super().__init__()
+        self.shape = shape
+    def __call__(self,i):
+        bs = tf.shape(i)[0] # assume [batch, dims...]
+        return tf.reshape(i,[bs]+self.shape)
+
 # you know, nonlinearities
 class Act(Can):
     def __init__(self,name):
@@ -241,6 +259,17 @@ class Conv2D(Can):
             return c + self.b
         else:
             return c
+
+# upsampling 2d
+class Up2D(Can):
+    def __init__(self, scale=2):
+        super().__init__()
+        self.scale = scale
+    def __call__(self,i):
+        scale = self.scale
+        s = tf.shape(i) # assume NHWC
+        newsize = [s[1]*scale,s[2]*scale]
+        return tf.image.resize_nearest_neighbor(i, size=newsize, align_corners=None, name=None)
 
 # you know, recurrency
 class Scanner(Can):
@@ -368,3 +397,44 @@ class ResConv(Can): # v2
             ident = self.convs[3](ident)
             out = ident+i
         return out
+
+class BatchNorm(Can):
+    def __init__(self,nip): # number of input planes/features/channels
+        super().__init__()
+        params_shape = [nip]
+        self.beta = self.make_bias(params_shape,name='beta',bias=0.)
+        self.gamma = self.make_weight(params_shape,name='gamma',bias=1.)
+        self.moving_mean = self.make_variable(
+            tf.constant(0.,shape=params_shape),name='moving_mean')
+        self.moving_variance = self.make_variable(
+            tf.constant(1.,shape=params_shape),name='moving_variance')
+
+    def __call__(self,x):
+        BN_DECAY = 0.99 # moving average constant
+        BN_EPSILON = 1e-4
+
+        x_shape = x.get_shape() # [N,H,W,C]
+        params_shape = x_shape[-1:] # [C]
+
+        axes = list(range(len(x_shape) - 1)) # = range(3) = [0,1,2]
+        # axes to reduce mean and variance.
+        # here mean and variance is estimated per channel(feature map).
+
+        # reduced mean and var(of activations) of each channel.
+        mean, variance = tf.nn.moments(x, axes)
+
+        # actual mean and var used:
+        if get_training_state()==True:
+            # use immediate when training(speedup convergence), perform update
+            moving_mean = tf.assign(self.moving_mean,
+                self.moving_mean*(1.-BN_DECAY) + mean*BN_DECAY)
+            moving_variance = tf.assign(self.moving_variance,
+                self.moving_variance*(1.-BN_DECAY) + variance*BN_DECAY)
+
+            mean, variance = mean + moving_mean * 1e-10, variance + moving_mean * 1e-10
+        else:
+            # use average when testing(stabilize), don't perform update
+            mean, variance = self.moving_mean, self.moving_variance
+
+        x = tf.nn.batch_normalization(x, mean, variance, self.beta, self.gamma, BN_EPSILON)
+        return x
