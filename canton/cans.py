@@ -24,7 +24,7 @@ class Can:
 
     # by making weight, you create trainable variables
     def make_weight(self,shape,name='W',bias=0.):
-        initial = tf.truncated_normal(shape, mean=bias, stddev=1e-3)
+        initial = tf.truncated_normal(shape, mean=bias, stddev=1e-2)
         w = tf.Variable(initial,name=name)
         self.weights.append(w)
         return w
