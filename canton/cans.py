@@ -74,8 +74,7 @@ class Can:
 
     # return weight tensors of current can and it's subcans
     def get_weights(self):
-        weights = self.traverse('weights')
-        return weights
+        return self.traverse('weights')
 
     # return update operations of current can and it's subcans
     def get_updates(self):
@@ -148,6 +147,33 @@ class Can:
 
         return self.inference(i)
 
+    def summary(self):
+        print('-------------------')
+        print('Directly Trainable:')
+        variables_summary(self.get_weights())
+        print('-------------------')
+        print('Not Directly Trainable:')
+        variables_summary(self.traverse('variables'))
+        print('-------------------')
+
+def variables_summary(var_list):
+    shapes = [v.get_shape() for v in var_list]
+    shape_lists = [s.as_list() for s in shapes]
+    shape_lists = list(map(lambda x:''.join(map(lambda x:'{:>5}'.format(x),x)),shape_lists))
+
+    num_elements = [s.num_elements() for s in shapes]
+    total_num_of_variables = sum(num_elements)
+    names = [v.name for v in var_list]
+
+    print('counting variables...')
+    for i in range(len(shapes)):
+        print('{:>25}  ->  {:<6} {}'.format(
+        shape_lists[i],num_elements[i],names[i]))
+
+    print('{:>25}  ->  {:<6} {}'.format(
+    'tensors: '+str(len(shapes)),
+    str(total_num_of_variables),
+    'variables'))
 
 # you know, MLP
 class Dense(Can):
