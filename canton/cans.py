@@ -399,7 +399,7 @@ class ResConv(Can): # v2
         return out
 
 class BatchNorm(Can):
-    def __init__(self,nip): # number of input planes/features/channels
+    def __init__(self,nip,epsilon=1e-3): # number of input planes/features/channels
         super().__init__()
         params_shape = [nip]
         self.beta = self.make_bias(params_shape,name='beta',bias=0.)
@@ -409,12 +409,14 @@ class BatchNorm(Can):
         self.moving_variance = self.make_variable(
             tf.constant(1.,shape=params_shape),name='moving_variance')
 
+        self.epsilon = epsilon
+
     def __call__(self,x):
         BN_DECAY = 0.99 # moving average constant
-        BN_EPSILON = 1e-4
+        BN_EPSILON = self.epsilon
 
         x_shape = x.get_shape() # [N,H,W,C]
-        params_shape = x_shape[-1:] # [C]
+        #params_shape = x_shape[-1:] # [C]
 
         axes = list(range(len(x_shape) - 1)) # = range(3) = [0,1,2]
         # axes to reduce mean and variance.
