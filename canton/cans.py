@@ -229,12 +229,18 @@ class Reshape(Can):
 class Act(Can):
     def __init__(self,name):
         super().__init__()
+        def lrelu(i):
+            positive = tf.nn.relu(i)
+            negative = tf.nn.relu(-i)
+            return positive - negative * 0.2
+
         activations = {
             'relu':tf.nn.relu,
             'tanh':tf.tanh,
             'sigmoid':tf.sigmoid,
             'softmax':tf.nn.softmax,
-            'elu':tf.nn.elu
+            'elu':tf.nn.elu,
+            'lrelu':lrelu,
         }
         self.set_function(activations[name])
 
