@@ -415,18 +415,19 @@ class BatchNorm(Can):
         BN_DECAY = 0.99 # moving average constant
         BN_EPSILON = self.epsilon
 
-        x_shape = x.get_shape() # [N,H,W,C]
-        #params_shape = x_shape[-1:] # [C]
-
-        axes = list(range(len(x_shape) - 1)) # = range(3) = [0,1,2]
-        # axes to reduce mean and variance.
-        # here mean and variance is estimated per channel(feature map).
-
-        # reduced mean and var(of activations) of each channel.
-        mean, variance = tf.nn.moments(x, axes)
-
         # actual mean and var used:
         if get_training_state()==True:
+
+            x_shape = x.get_shape() # [N,H,W,C]
+            #params_shape = x_shape[-1:] # [C]
+
+            axes = list(range(len(x_shape) - 1)) # = range(3) = [0,1,2]
+            # axes to reduce mean and variance.
+            # here mean and variance is estimated per channel(feature map).
+
+            # reduced mean and var(of activations) of each channel.
+            mean, variance = tf.nn.moments(x, axes)
+
             # use immediate when training(speedup convergence), perform update
             moving_mean = tf.assign(self.moving_mean,
                 self.moving_mean*(1.-BN_DECAY) + mean*BN_DECAY)
