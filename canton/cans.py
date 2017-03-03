@@ -233,12 +233,16 @@ class Act(Can):
             positive = tf.nn.relu(i)
             negative = tf.nn.relu(-i)
             return positive - negative * 0.2
-
+        def softmax(i):
+            i = i - tf.reduce_max(i) # stabilize exponent
+            e = tf.exp(i)
+            se = tf.reduce_sum(e,axis=-1,keep_dims=True)
+            return e/se
         activations = {
             'relu':tf.nn.relu,
             'tanh':tf.tanh,
             'sigmoid':tf.sigmoid,
-            'softmax':tf.nn.softmax,
+            'softmax':softmax,
             'elu':tf.nn.elu,
             'lrelu':lrelu,
         }

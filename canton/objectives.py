@@ -10,3 +10,6 @@ def mean_softmax_cross_entropy(pred,gt):
     tf.nn.softmax_cross_entropy_with_logits(logits=pred,labels=gt))
     # tf r1.0 : must use named arguments
     return loss
+
+def cross_entropy_loss(pred,gt):
+    return - tf.reduce_mean(tf.reduce_sum(tf.log(pred) * gt, axis=-1))
