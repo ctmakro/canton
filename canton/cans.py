@@ -23,14 +23,14 @@ class Can:
         self.inference = None
 
     # by making weight, you create trainable variables
-    def make_weight(self,shape,name='W',bias=0.):
-        initial = tf.truncated_normal(shape, mean=bias, stddev=1e-2)
+    def make_weight(self,shape,name='W', mean=0., stddev=1e-2):
+        initial = tf.truncated_normal(shape, mean=mean, stddev=stddev)
         w = tf.Variable(initial,name=name)
         self.weights.append(w)
         return w
 
-    def make_bias(self,shape,name='b',bias=0.):
-        initial = tf.constant(bias, shape=shape)
+    def make_bias(self,shape,name='b', mean=0.):
+        initial = tf.constant(mean, shape=shape)
         b = tf.Variable(initial,name=name)
         self.weights.append(b)
         return b
@@ -188,7 +188,7 @@ def variables_summary(var_list):
 class Dense(Can):
     def __init__(self,num_inputs,num_outputs,bias=True):
         super().__init__()
-        self.W = self.make_weight([num_inputs,num_outputs])
+        self.W = self.make_weight([num_inputs,num_outputs],stddev=np.sqrt(2/num_inputs))
         self.use_bias = bias
         if bias:
             self.b = self.make_bias([num_outputs])
@@ -262,7 +262,7 @@ class Conv2D(Can):
         self.nip,self.nop,self.k,self.std,self.usebias,self.padding,self.rate\
         = nip,nop,k,std,usebias,padding,rate
 
-        self.W = self.make_weight([k,k,nip,nop]) # assume square window
+        self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(2/(nip*k*k))) # assume square window
         if usebias==True:
             self.b =self.make_bias([nop])
 
@@ -430,8 +430,8 @@ class BatchNorm(Can):
     def __init__(self,nip,epsilon=1e-3): # number of input planes/features/channels
         super().__init__()
         params_shape = [nip]
-        self.beta = self.make_bias(params_shape,name='beta',bias=0.)
-        self.gamma = self.make_bias(params_shape,name='gamma',bias=1.)
+        self.beta = self.make_bias(params_shape,name='beta',mean=0.)
+        self.gamma = self.make_bias(params_shape,name='gamma',mean=1.)
         self.moving_mean = self.make_variable(
             tf.constant(0.,shape=params_shape),name='moving_mean')
         self.moving_variance = self.make_variable(
