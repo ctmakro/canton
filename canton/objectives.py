@@ -16,11 +16,8 @@ def mean_softmax_cross_entropy(pred,gt):
     # tf r1.0 : must use named arguments
     return loss
 
-def cross_entropy_loss(pred,gt):
-    return - tf.reduce_mean(tf.reduce_sum(loge(pred) * gt, axis=-1))
+def cross_entropy_loss(pred,gt): # last dim is one_hot
+    return - tf.reduce_mean(tf.reduce_sum(loge(pred) * gt, axis=tf.shape(pred)[-1]))
 
-def binary_cross_entropy_loss(pred,gt):
-    return - tf.reduce_mean(
-            tf.reduce_sum(
-                loge(pred) * gt + loge(1-pred) * (1-gt), axis=-1)
-        ) * 0.5
+def binary_cross_entropy_loss(pred,gt): # last dim is 1
+    return - tf.reduce_mean(loge(pred) * gt + loge(1.-pred) * (1.-gt))
