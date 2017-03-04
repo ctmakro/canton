@@ -252,18 +252,29 @@ class Act(Can):
 class Conv2D(Can):
     # nip and nop: input and output planes
     # k: dimension of kernel, 3 for 3x3, 5 for 5x5
-    def __init__(self,nip,nop,k,std=1,usebias=True,padding='SAME'):
+    # rate: atrous conv rate, 1 = not, 2 = skip one
+    def __init__(self,nip,nop,k,std=1,usebias=True,rate=1,padding='SAME'):
         super().__init__()
-        self.nip,self.nop,self.k,self.std,self.usebias,self.padding = nip,nop,k,std,usebias,padding
+        if rate>1 and std>1:
+            raise('atrous rate can\'t also be greater \
+                than one when stride is already greater than one.')
+
+        self.nip,self.nop,self.k,self.std,self.usebias,self.padding,self.rate\
+        = nip,nop,k,std,usebias,padding,rate
 
         self.W = self.make_weight([k,k,nip,nop]) # assume square window
         if usebias==True:
             self.b =self.make_bias([nop])
 
     def __call__(self,i):
-        c = tf.nn.conv2d(i,self.W,
-            strides=[1, self.std, self.std, 1],
-            padding=self.padding)
+        if self.rate == 1:
+            c = tf.nn.conv2d(i,self.W,
+                strides=[1, self.std, self.std, 1],
+                padding=self.padding)
+        else: #dilated conv
+            c = tf.nn.atrous_conv2d(i,self.W,
+                rate=self.rate,
+                padding=self.padding)
 
         if self.usebias==True:
             return c + self.b
