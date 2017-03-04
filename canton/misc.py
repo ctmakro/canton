@@ -76,3 +76,6 @@ def get_variables_of_scope(collection_name,scope_name):
 
 def ph(shape,*args,**kwargs):
     return tf.placeholder(tf.float32,shape=[None]+shape,*args,**kwargs)
+
+def gvi():
+    return tf.global_variables_initializer()

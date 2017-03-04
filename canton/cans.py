@@ -367,42 +367,49 @@ class AvgPool2D(Can):
 
 # you know, He Kaiming
 class ResConv(Can): # v2
-    def __init__(self,nip,nop,std=1):
+    def __init__(self,nip,nop,std=1,bn=True):
         super().__init__()
         # create the necessary cans:
         nbp = int(max(nip,nop)/4) # bottleneck
-        self.direct_sum = nip==nop and std==1 # if no downsampling and feature shrinking
+        self.direct_sum = (nip==nop and std==1)
+        # if no downsampling and feature shrinking
 
         if self.direct_sum:
-            self.convs = [Conv2D(nip,nbp,1),Conv2D(nbp,nbp,3),Conv2D(nbp,nop,1)]
+            self.convs = \
+            [Conv2D(nip,nbp,1,usebias=False),
+            Conv2D(nbp,nbp,3,usebias=False),
+            Conv2D(nbp,nop,1,usebias=False)]
+            self.bns = [BatchNorm(nip),BatchNorm(nbp),BatchNorm(nbp)]
         else:
-            self.convs = [Conv2D(nip,nbp,1,std=std),Conv2D(nbp,nbp,3),
-            Conv2D(nbp,nop,1),Conv2D(nip,nop,1,std=std)]
+            self.convs = \
+            [Conv2D(nip,nbp,1,std=std,usebias=False),
+            Conv2D(nbp,nbp,3,usebias=False),
+            Conv2D(nbp,nop,1,usebias=False),
+            Conv2D(nip,nop,1,std=std,usebias=False)]
+            self.bns = [BatchNorm(nip),BatchNorm(nbp),BatchNorm(nbp)]
 
-        self.incan(self.convs) # add those cans into collection
+        self.incan(self.convs+self.bns) # add those cans into collection
 
     def __call__(self,i):
-        def bnr(i):
-            bn = lambda x:x
-            relu = tf.nn.relu
-            return bn(relu(i))
+        def relu(i):
+            return tf.nn.relu(i)
 
         if self.direct_sum:
             ident = i
-            i = bnr(i)
+            i = relu(self.bns[0](i))
             i = self.convs[0](i)
-            i = bnr(i)
+            i = relu(self.bns[1](i))
             i = self.convs[1](i)
-            i = bnr(i)
+            i = relu(self.bns[2](i))
             i = self.convs[2](i)
             out = ident+i
         else:
-            i = bnr(i)
+            i = relu(self.bns[0](i))
             ident = i
             i = self.convs[0](i)
-            i = bnr(i)
+            i = relu(self.bns[1](i))
             i = self.convs[1](i)
-            i = bnr(i)
+            i = relu(self.bns[2](i))
             i = self.convs[2](i)
             ident = self.convs[3](ident)
             out = ident+i
@@ -413,7 +420,7 @@ class BatchNorm(Can):
         super().__init__()
         params_shape = [nip]
         self.beta = self.make_bias(params_shape,name='beta',bias=0.)
-        self.gamma = self.make_weight(params_shape,name='gamma',bias=1.)
+        self.gamma = self.make_bias(params_shape,name='gamma',bias=1.)
         self.moving_mean = self.make_variable(
             tf.constant(0.,shape=params_shape),name='moving_mean')
         self.moving_variance = self.make_variable(
