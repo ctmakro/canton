@@ -199,7 +199,7 @@ class Dense(Can):
         else:
             return d
 
-# apply Dense on last dimension of 1d input. equivalent to conv1d.
+# apply Dense on last dimension of 1d input. equivalent to 1x1 conv1d.
 class TimeDistributedDense(Dense):
     def __call__(self,i):
         s = tf.shape(i)
@@ -208,6 +208,20 @@ class TimeDistributedDense(Dense):
         i = super().__call__(i)
         d = tf.shape(i)[1]
         i = tf.reshape(i,[b,t,d])
+        return i
+
+# apply Dense on last dimension of Nd input.
+class LastDimDense(Dense):
+    def __call__(self,i):
+        s = tf.shape(i)
+        rank = tf.rank(i)
+        fore = s[0:rank-1] # foremost dimensions
+        last = s[rank-1] # last dimension
+        prod = tf.reduce_prod(fore)
+        i = tf.reshape(i,[prod,last]) # shape into
+        i = super().__call__(i) # call Dense layer
+        d = tf.shape(i)[1]
+        i = tf.reshape(i,tf.concat([fore,[d]],axis=0)) # shape back
         return i
 
 # you know, shorthand
@@ -229,10 +243,10 @@ class Reshape(Can):
 class Act(Can):
     def __init__(self,name):
         super().__init__()
-        def lrelu(i):
-            positive = tf.nn.relu(i)
+        def lrelu(i): # fast impl. with only 1 relu
+            alpha = 0.2
             negative = tf.nn.relu(-i)
-            return positive - negative * 0.2
+            return i + negative * (1.0-alpha)
         def softmax(i):
             i = i - tf.reduce_max(i) # stabilize exponent
             e = tf.exp(i)
@@ -245,8 +259,28 @@ class Act(Can):
             'softmax':softmax,
             'elu':tf.nn.elu,
             'lrelu':lrelu,
+            'softplus':tf.nn.softplus,
         }
         self.set_function(activations[name])
+
+# you know, brain damage
+class Drop(Can):
+    def __init__(self,prob,switch=None):
+        super().__init__()
+        self.prob = prob
+        self.switch = switch
+    def __call__(self,i):
+        if self.switch is None: # not using a switch variable (recommended)
+            if get_training_state():
+                return tf.nn.dropout(i, keep_prob=self.prob)
+            else:
+                return i
+        else:
+            # use a switch variable
+            # (if the memory is so limited that a separate flow not possible)
+            return tf.cond(self.switch,
+                lambda:tf.nn.dropout(i,keep_prob=self.prob),
+                lambda:i)
 
 # you know, Yann LeCun
 class Conv2D(Can):
@@ -313,10 +347,12 @@ class Scanner(Can):
 # deal with batch input.
 class BatchScanner(Scanner):
     def __call__(self, i, **kwargs):
-        it = tf.transpose(i, perm=[1,0,2])
-        #[Batch, Seq, Dim] -> [Seq, Batch, Dim]
+        rank = tf.rank(i)
+        perm = tf.concat([[1,0],tf.range(2,rank)],axis=0)
+        it = tf.transpose(i, perm=perm)
+        #[Batch, Seq, Blah, Dim] -> [Seq, Batch, Blah, Dim]
         scanned = super().__call__(it, **kwargs)
-        scanned = tf.transpose(scanned, perm=[1,0,2])
+        scanned = tf.transpose(scanned, perm=perm)
         return scanned
 
 # single forward pass version of GRU. Normally we don't use this directly
@@ -336,27 +372,40 @@ class GRU_onepass(Can):
         hidden = i[0]
         inp = i[1]
         wz,wr,w = self.wz,self.wr,self.w
-        c = tf.concat([hidden,inp],axis=1)
+        dims = tf.rank(inp)
+        c = tf.concat([hidden,inp],axis=dims-1)
         z = tf.sigmoid(wz(c))
         r = tf.sigmoid(wr(c))
-        h_c = tf.tanh(w(tf.concat([hidden*r,inp],axis=1)))
+        h_c = tf.tanh(w(tf.concat([hidden*r,inp],axis=dims-1)))
         h_new = (1-z) * hidden + z * h_c
         return h_new
 
+# single forward pass version of GRUConv2D.
+class GRUConv2D_onepass(GRU_onepass): # inherit the __call__ method
+    def __init__(self,num_in,num_h):
+        Can.__init__(self)
+        # assume input has dimension num_in.
+        self.num_in,self.num_h = num_in, num_h
+        self.wz = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
+        self.wr = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
+        self.w = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
+        self.incan([self.wz,self.wr,self.w])
+
 # RNN Can generator from cells, similar to tf.nn.dynamic_rnn
-def rnn_gen(name, unit_class):
+def rnn_gen(name, one_pass_class):
     class RNN(Can):
-        def __init__(self,*args):
+        def __init__(self,*args,**kwargs):
             super().__init__()
-            self.unit = unit_class(*args)
+            self.unit = one_pass_class(*args,**kwargs)
             def f(last_state, new_input):
                 return self.unit([last_state, new_input])
             self.bscan = BatchScanner(f)
             self.incan([self.unit,self.bscan])
         def __call__(self,i,**kwargs):
             # given input, what should be the shape of the state?
-            s = tf.shape(i) #[batch, timesteps, dim]
-            state_shape = [s[0], self.unit.num_h] # [batch, hidden_dim]
+            s = tf.shape(i)
+            state_shape = tf.concat([[s[0]],s[2:-1],[self.unit.num_h]],axis=0)
+            # [batch, timesteps, blah, dim]->[batch, blah, hidden_dim]
 
             return self.bscan(i,state_shape=state_shape, **kwargs)
     RNN.__name__ = name
@@ -364,6 +413,7 @@ def rnn_gen(name, unit_class):
 
 # you know, Despicable Me
 GRU = rnn_gen('GRU', GRU_onepass)
+GRUConv2D = rnn_gen('GRUConv2D', GRUConv2D_onepass)
 
 # you know, LeNet
 class AvgPool2D(Can):
@@ -374,6 +424,12 @@ class AvgPool2D(Can):
     def __call__(self,i):
         k,std,padding = self.k,self.std,self.padding
         return tf.nn.avg_pool(i, ksize=[1, k, k, 1],
+            strides=[1, std, std, 1], padding=padding)
+
+class MaxPool2D(AvgPool2D):
+    def __call__(self,i):
+        k,std,padding = self.k,self.std,self.padding
+        return tf.nn.max_pool(i, ksize=[1, k, k, 1],
             strides=[1, std, std, 1], padding=padding)
 
 # you know, He Kaiming
