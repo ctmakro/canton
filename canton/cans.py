@@ -382,13 +382,13 @@ class GRU_onepass(Can):
 
 # single forward pass version of GRUConv2D.
 class GRUConv2D_onepass(GRU_onepass): # inherit the __call__ method
-    def __init__(self,num_in,num_h):
+    def __init__(self,num_in,num_h,*args,**kwargs):
         Can.__init__(self)
         # assume input has dimension num_in.
         self.num_in,self.num_h = num_in, num_h
-        self.wz = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
-        self.wr = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
-        self.w = Conv2D(num_in+num_h,num_h,k=3,usebias=False)
+        self.wz = Conv2D(num_in+num_h,num_h,usebias=False,*args,**kwargs)
+        self.wr = Conv2D(num_in+num_h,num_h,usebias=False,*args,**kwargs)
+        self.w = Conv2D(num_in+num_h,num_h,usebias=False,*args,**kwargs)
         self.incan([self.wz,self.wr,self.w])
 
 # RNN Can generator from cells, similar to tf.nn.dynamic_rnn
