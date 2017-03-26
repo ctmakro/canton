@@ -106,7 +106,7 @@ class Can:
             # extract all weights in one go:
             w = self.get_value_of(self.get_weights()+self.traverse('variables'))
             print(len(w),'weights (and variables) obtained.')
-            np.save(f,w)
+            np.savez_compressed(f,w=w)
             print('successfully saved to',filename)
             return True
 
@@ -114,6 +114,12 @@ class Can:
         with open(filename,'rb') as f:
             loaded_w = np.load(f)
             print('successfully loaded from',filename)
+            if hasattr(loaded_w,'items'):
+                # compressed npz (newer)
+                loaded_w = loaded_w['w']
+            else:
+                # npy (older)
+                pass
             # but we cannot assign all those weights in one go...
             model_w = self.get_weights()+self.traverse('variables')
             if len(loaded_w)!=len(model_w):
