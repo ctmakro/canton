@@ -106,7 +106,15 @@ class Can:
             # extract all weights in one go:
             w = self.get_value_of(self.get_weights()+self.traverse('variables'))
             print(len(w),'weights (and variables) obtained.')
-            np.savez_compressed(f,w=w)
+
+            # create an array object and put all the arrays into it.
+            # otherwise np.asanyarray() within np.savez_compressed()
+            # might make stupid mistakes
+            arrobj = np.empty([len(w)],dtype='object') # array object
+            for i in range(len(w)):
+                arrobj[i] = w[i]
+
+            np.savez_compressed(f,w=arrobj)
             print('successfully saved to',filename)
             return True
 
