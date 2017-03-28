@@ -349,9 +349,10 @@ class Scanner(Can):
         # previous state is useful when running online.
         if starting_state is None:
             if state_shape is None:
-                print('cannot infer state_shape. use shape of input[0] instead. please make sure the input to the Scanner has the same last dimension as the function being scanned.')
+                print('(Scanner) cannot infer state_shape. use shape of input[0] instead. please make sure the input to the Scanner has the same last dimension as the function being scanned.')
                 initializer = tf.zeros_like(i[0])
             else:
+                print('(Scanner) using state_shape inferred from input')
                 initializer = tf.zeros(state_shape, tf.float32)
         else:
             initializer = starting_state
@@ -418,7 +419,8 @@ def rnn_gen(name, one_pass_class):
         def __call__(self,i,**kwargs):
             # given input, what should be the shape of the state?
             s = tf.shape(i)
-            state_shape = tf.concat([[s[0]],s[2:-1],[self.unit.num_h]],axis=0)
+            r = tf.rank(i)
+            state_shape = tf.concat([[s[0]],s[2:r-1],[self.unit.num_h]],axis=0)
             # [batch, timesteps, blah, dim]->[batch, blah, hidden_dim]
 
             return self.bscan(i,state_shape=state_shape, **kwargs)
