@@ -21,3 +21,10 @@ def cross_entropy_loss(pred,gt): # last dim is one_hot
 
 def binary_cross_entropy_loss(pred,gt,l=1.0): # last dim is 1
     return - tf.reduce_mean(loge(pred) * gt + l * loge(1.-pred) * (1.-gt))
+
+def sigmoid_cross_entropy_loss(pred,gt): # same as above but more stable
+    return tf.nn.sigmoid_cross_entropy_with_logits(logits=pred,labels=gt)
+
+def mean_sigmoid_cross_entropy_loss(pred,gt): # same as above but more stable
+    return tf.reduce_mean(
+        tf.nn.sigmoid_cross_entropy_with_logits(logits=pred,labels=gt))
