@@ -345,15 +345,15 @@ class Scanner(Can):
     def __init__(self,f):
         super().__init__()
         self.f = f
-    def __call__(self,i,starting_state=None, state_shape=None):
+    def __call__(self,i,starting_state=None, inferred_state_shape=None):
         # previous state is useful when running online.
         if starting_state is None:
-            if state_shape is None:
-                print('(Scanner) cannot infer state_shape. use shape of input[0] instead. please make sure the input to the Scanner has the same last dimension as the function being scanned.')
+            if inferred_state_shape is None:
+                print('(Scanner) cannot/didnot infer state_shape. use shape of input[0] instead. please make sure the input to the Scanner has the same last dimension as the function being scanned.')
                 initializer = tf.zeros_like(i[0])
             else:
-                print('(Scanner) using state_shape inferred from input')
-                initializer = tf.zeros(state_shape, tf.float32)
+                print('(Scanner) using inferred_state_shape')
+                initializer = tf.zeros(inferred_state_shape, tf.float32)
         else:
             initializer = starting_state
         scanned = tf.scan(self.f,i,initializer=initializer)
@@ -366,8 +366,13 @@ class BatchScanner(Scanner):
         perm = tf.concat([[1,0],tf.range(2,rank)],axis=0)
         it = tf.transpose(i, perm=perm)
         #[Batch, Seq, Blah, Dim] -> [Seq, Batch, Blah, Dim]
+        
         scanned = super().__call__(it, **kwargs)
+
+        rank = tf.rank(scanned)
+        perm = tf.concat([[1,0],tf.range(2,rank)],axis=0)
         scanned = tf.transpose(scanned, perm=perm)
+        #[Batch, Seq, Blah, Dim] <- [Seq, Batch, Blah, Dim]
         return scanned
 
 # single forward pass version of GRU. Normally we don't use this directly
@@ -416,14 +421,19 @@ def rnn_gen(name, one_pass_class):
                 return self.unit([last_state, new_input])
             self.bscan = BatchScanner(f)
             self.incan([self.unit,self.bscan])
-        def __call__(self,i,**kwargs):
+        def __call__(self,i,state_shaper=None,**kwargs):
             # given input, what should be the shape of the state?
             s = tf.shape(i)
             r = tf.rank(i)
-            state_shape = tf.concat([[s[0]],s[2:r-1],[self.unit.num_h]],axis=0)
-            # [batch, timesteps, blah, dim]->[batch, blah, hidden_dim]
+            if state_shaper is not None:
+                print('(RNN) inferring state_shape using state_shaper().')
+                state_shape = state_shaper(i,self.unit.num_h)
+            else:
+                print('(RNN) inferring state_shape from input.')
+                state_shape = tf.concat([[s[0]],s[2:r-1],[self.unit.num_h]],axis=0)
+                # [batch, timesteps, blah, dim]->[batch, blah, hidden_dim]
 
-            return self.bscan(i,state_shape=state_shape, **kwargs)
+            return self.bscan(i,inferred_state_shape=state_shape, **kwargs)
     RNN.__name__ = name
     return RNN
 
