@@ -2,9 +2,16 @@
 Canton
 ======
 
-The Canton library is a lightweight wrapper around TensorFlow, focused on **intuitive programmatical modeling and weight sharing**. It provides flexible ways to define, train, evaluate and save your computational networks.
+The Canton library is a lightweight wrapper around TensorFlow, focused on **intuitive programmatical modeling and weight sharing**. It provides flexible ways to define, train, evaluate and save your computational models.
 
     Canton is named after the city of Guangzhou. The French came a long time ago; they used to call this city "Canton", which sounds like "Guangdong" when pronounced in French, which is actually the name of the province, not the city. Since then, all westerners start to use the word Canton. The Yue language, a dialect of Chinese commonly used in Guangzhou and the United States, is known as "Cantonese" in English for this reason.
+
+Usage
+=====
+
+Check `this tutorial <https://github.com/ctmakro/canton/blob/master/tutorial.ipynb>`_.
+
+No explicit documentation provided. Please consider reading the source code (only 3 files).
 
 The Canton Philosophy
 =====================
@@ -12,13 +19,6 @@ The Canton Philosophy
 - The network units, and the weights associated with them, should be tied together as one, not seperated.
 - Therefore, obtaining the weight tensors of any weighted action (or a set of actions bound together, or a network) should be as easy as calling ``some_action.get_weights()``, not ``tf.very_long_method_name(some_collection).some_other_method(some_name_prefixes)``.
 - One should by default be able to create a unit once and apply it everywhere, while maintaining only one set of weights for that unit.
-
-Usage
-=====
-
-Check `this tutorial <https://github.com/ctmakro/canton/blob/master/tutorial.ipynb>`_.
-
-No explicit documentation. Please consider reading the source code (only 3 files).
 
 Story Behind
 ============
@@ -36,8 +36,8 @@ Install
 
 pip install canton
 
-Support Python 3 only.
+Supports Python 3 only.
 
 dependencies:
 
-- tensorflow-1.0.0
+- tensorflow r1.1 (``tf.einsum()`` supports ``None`` shaped tensors after this version)
