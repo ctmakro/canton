@@ -66,29 +66,28 @@ class Glimpse2D(Can):
         variances = self.variances() # [num_of_receptor, 1]
 
         ish = tf.shape(images) # [batch, h, w, c]
+
+        uspan = castf32(ish[1])
+        vspan = castf32(ish[2])
+
         # UVMap, aka coordinate system
-        u,v = tf.range(start=0,limit=ish[1],dtype=tf.int32),\
-                tf.range(start=0,limit=ish[2],dtype=tf.int32)
+        u = tf.range(start=-(uspan-1)/2,limit=(uspan+1)/2,dtype=tf.float32)
+        v = tf.range(start=-(vspan-1)/2,limit=(vspan+1)/2,dtype=tf.float32)
         # U, V -> [hpixels], [wpixels]
 
-        u,v = castf32(u) - (castf32(ish[1])-1)/2, \
-            castf32(u) - (castf32(ish[2])-1)/2
-
         u = tf.expand_dims(u, axis=0)
         u = tf.expand_dims(u, axis=0)
-        u = tf.expand_dims(u, axis=3)
 
         v = tf.expand_dims(v, axis=0)
         v = tf.expand_dims(v, axis=0)
-        v = tf.expand_dims(v, axis=0)
-        # U, V -> [1, 1, hpixels, 1], [1, 1, 1, wpixels]
+        # U, V -> [1, 1, hpixels], [1, 1, wpixels]
         # where hpixels = [-0.5...0.5] * image_height
         # where wpixels = [-0.5...0.5] * image_width
 
-        smh = tf.expand_dims(shifted_means[:,:,0:1], axis=2)
-        # [batch, num_of_receptor, 1, 1(h)]
-        smw = tf.expand_dims(shifted_means[:,:,1:2], axis=3)
-        # [batch, num_of_receptor, 1, 1(w)]
+        receptor_h = shifted_means[:,:,0:1]
+        # [batch, num_of_receptor, 1(h)]
+        receptor_w = shifted_means[:,:,1:2]
+        # [batch, num_of_receptor, 1(w)]
 
         # RBF that sum to one over entire x-y plane:
         # integrate
@@ -105,8 +104,6 @@ class Glimpse2D(Can):
 
         variances = tf.expand_dims(variances, axis=0)
         # [1, num_of_receptor, var]
-        variances = tf.expand_dims(variances, axis=2)
-        # [1, num_of_receptor, 1, var]
 
         # density = tf.exp(- squared_dist / variances) / \
         #         (variances * np.pi)
@@ -118,18 +115,43 @@ class Glimpse2D(Can):
 
         half_log_one_over_pi_variances = tf.log(1/variances/np.pi)/2
 
-        density = tf.exp(\
-            -(smh-u)**2 / variances + half_log_one_over_pi_variances) * \
-            tf.exp(\
-            -(smw-v)**2 / variances + half_log_one_over_pi_variances)
+        # density = tf.exp(\
+        #     -(receptor_h-u)**2 / variances + half_log_one_over_pi_variances) * \
+        #     tf.exp(\
+        #     -(receptor_w-v)**2 / variances + half_log_one_over_pi_variances)
 
-        density = tf.expand_dims(density, axis=4)
+        density_u = tf.exp(\
+            -(receptor_h-u)**2 / variances + half_log_one_over_pi_variances)
+        density_v = tf.exp(\
+            -(receptor_w-v)**2 / variances + half_log_one_over_pi_variances)
+        # [b, n, h] and [b, n, w]
+
+        # density_u = tf.expand_dims(density_u, axis=3)
+        # density_u = tf.expand_dims(density_u, axis=4)
+        # density_v = tf.expand_dims(density_v, axis=3)
+        # # [b, n, h, 1, 1] and [b, n, w, 1]
+
+        # density = tf.expand_dims(density, axis=4)
         # [b, n, h, w, 1]
 
-        images = tf.expand_dims(images, axis=1)
-        # [b, h, w, c] -> [b, 1, h, w, c]
+        # images = tf.expand_dims(images, axis=1)
+        # # [b, h, w, c] -> [b, 1, h, w, c]
+        #
+        # tmp = images * density_u
+        # # [b, 1, h, w, c] * [b, n, h, 1, 1] -> [b, n, h, w, c]
+        # tmp = tf.reduce_sum(tmp, axis=[2]) # -> [b, n, w, c]
+        # tmp = tmp * density_v # [b, n, w, c] * [b, n, w, 1] -> [b, n, w, c]
+        # tmp = tf.reduce_sum(tmp, axis=[2]) # -> [b, n, c]
 
-        responses = tf.reduce_sum(density * images, axis=[2,3])
+        # can we transform above into matmul?
+        # [b1wc,h] * [bn11,h] -> [bnwc](sum over h)
+        # [bnc,w] * [bn1,w] -> [bnc](sum over w)
+        # [bnc] -> [b, n, c]
+        tmp = tf.einsum('bhwc,bnh->bnwc',images,density_u)
+        tmp = tf.einsum('bnwc,bnw->bnc',tmp,density_v)
+
+        # responses = tf.reduce_sum(density * images, axis=[2,3])
+        responses = tmp
         # [batch, num_of_receptor, channel]
         return responses
 
