@@ -147,8 +147,11 @@ class Glimpse2D(Can):
         # [b1wc,h] * [bn11,h] -> [bnwc](sum over h)
         # [bnc,w] * [bn1,w] -> [bnc](sum over w)
         # [bnc] -> [b, n, c]
-        tmp = tf.einsum('bhwc,bnh->bnwc',images,density_u)
-        tmp = tf.einsum('bnwc,bnw->bnc',tmp,density_v)
+        # tmp = tf.einsum('bhwc,bnh->bnwc',images,density_u)
+        # tmp = tf.einsum('bnwc,bnw->bnc',tmp,density_v)
+
+        # turned out Einstein is a genius:
+        tmp = tf.einsum('bhwc,bnh,bnw->bnc',images,density_u,density_v)
 
         # responses = tf.reduce_sum(density * images, axis=[2,3])
         responses = tmp
