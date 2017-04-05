@@ -31,13 +31,13 @@ class Glimpse2D(Can):
                     break
 
         # positions = np.random.uniform(low=-ps/2,high=ps/2,size=(nr,2)).astype('float32')
-        positions = (positions - 0.5) * ps * 0.5
+        positions = (positions - 0.5) * ps * 0.8
         m = tf.Variable(positions,name='means')
         self.weights.append(m)
         self.means = m
 
         # stddev of receptive fields
-        stddevs = (np.ones((nr,1))*ps*0.12*(1/(w-1))).astype('float32')
+        stddevs = (np.ones((nr,1))*ps*0.5*(1/(w-1))).astype('float32')
         s = tf.Variable(stddevs,name='stddevs')
         self.weights.append(s)
         self.stddevs = s
