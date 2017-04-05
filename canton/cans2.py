@@ -86,9 +86,9 @@ class Glimpse2D(Can):
         # where wpixels = [-0.5...0.5] * image_width
 
         smh = tf.expand_dims(shifted_means[:,:,0:1], axis=2)
-        # [batch, num_of_receptor, 1(h)]
+        # [batch, num_of_receptor, 1, 1(h)]
         smw = tf.expand_dims(shifted_means[:,:,1:2], axis=3)
-        # [batch, num_of_receptor, 1(w)]
+        # [batch, num_of_receptor, 1, 1(w)]
 
         # RBF that sum to one over entire x-y plane:
         # integrate
@@ -96,7 +96,11 @@ class Glimpse2D(Can):
         #   dx dy x=-inf to inf, y=-inf to inf, v>0
         # where ((x-0.1)^2+(y-0.3)^2) is the squared distance on the 2D plane
 
-        squared_dist = (smh - u)**2 + (smw - v)**2
+        # UPDATE 20170405: by using SymPy, we got:
+        # infitg(exp((-x**2/var + log(1/pi/var)/2)) * exp(-y**2/var +
+        # log(1/pi/var)/2)) = 1
+
+        # squared_dist = (smh - u)**2 + (smw - v)**2
         # [batch, num_of_receptor, hpixels, wpixels]
 
         variances = tf.expand_dims(variances, axis=0)
@@ -104,10 +108,20 @@ class Glimpse2D(Can):
         variances = tf.expand_dims(variances, axis=2)
         # [1, num_of_receptor, 1, var]
 
-        density = tf.exp(- squared_dist / variances) / \
-                (variances * np.pi)
+        # density = tf.exp(- squared_dist / variances) / \
+        #         (variances * np.pi)
         # [b, n, h, w] / [1, n, 1, 1]
         # should sum to 1
+
+        # optimized on 20170405
+        # reduce calculations to a minimum
+
+        half_log_one_over_pi_variances = tf.log(1/variances/np.pi)/2
+
+        density = tf.exp(\
+            -(smh-u)**2 / variances + half_log_one_over_pi_variances) * \
+            tf.exp(\
+            -(smw-v)**2 / variances + half_log_one_over_pi_variances)
 
         density = tf.expand_dims(density, axis=4)
         # [b, n, h, w, 1]
