@@ -45,8 +45,8 @@ class Glimpse2D(Can):
     def shifted_means_given_offsets(self,offsets):
         means = self.means # [num_of_receptor, 2]
 
-        means = tf.expand_dims(means,axis=0) # [batch, num_of_receptor, 2]
-        offsets = tf.expand_dims(offsets,axis=1) # [batch, num_of_receptor, 2]
+        means = tf.expand_dims(means,axis=0) # [1, num_of_receptor, 2]
+        offsets = tf.expand_dims(offsets,axis=1) # [batch, 1, 2]
 
         shifted_means = means + offsets # [batch, num_of_receptor, 2]
 
@@ -64,6 +64,8 @@ class Glimpse2D(Can):
             self.shifted_means_given_offsets(offsets)
 
         variances = self.variances() # [num_of_receptor, 1]
+        variances = tf.expand_dims(variances, axis=0)
+        # [1, num_of_receptor, 1]
 
         ish = tf.shape(images) # [batch, h, w, c]
 
@@ -101,9 +103,6 @@ class Glimpse2D(Can):
 
         # squared_dist = (smh - u)**2 + (smw - v)**2
         # [batch, num_of_receptor, hpixels, wpixels]
-
-        variances = tf.expand_dims(variances, axis=0)
-        # [1, num_of_receptor, var]
 
         # density = tf.exp(- squared_dist / variances) / \
         #         (variances * np.pi)
