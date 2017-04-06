@@ -260,17 +260,13 @@ class Act(Can):
         def lrelu(i): # fast impl. with only 1 relu
             alpha = 0.2
             negative = tf.nn.relu(-i)
-            return i + negative * (1.0-alpha)
-        def softmax(i):
-            i = i - tf.reduce_max(i) # stabilize exponent
-            e = tf.exp(i)
-            se = tf.reduce_sum(e,axis=-1,keep_dims=True)
-            return e/se
+            res = i + negative * (1.0-alpha)
+            return res
         activations = {
             'relu':tf.nn.relu,
             'tanh':tf.tanh,
             'sigmoid':tf.sigmoid,
-            'softmax':softmax,
+            'softmax':tf.nn.softmax,
             'elu':tf.nn.elu,
             'lrelu':lrelu,
             'softplus':tf.nn.softplus,
@@ -366,7 +362,7 @@ class BatchScanner(Scanner):
         perm = tf.concat([[1,0],tf.range(2,rank)],axis=0)
         it = tf.transpose(i, perm=perm)
         #[Batch, Seq, Blah, Dim] -> [Seq, Batch, Blah, Dim]
-        
+
         scanned = super().__call__(it, **kwargs)
 
         rank = tf.rank(scanned)
