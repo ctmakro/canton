@@ -73,8 +73,8 @@ class Glimpse2D(Can):
         vspan = castf32(ish[2])
 
         # UVMap, aka coordinate system
-        u = tf.range(start=-(uspan-1)/2,limit=(uspan+1)/2,dtype=tf.float32)
-        v = tf.range(start=-(vspan-1)/2,limit=(vspan+1)/2,dtype=tf.float32)
+        u = tf.range(start=(-uspan+1)/2,limit=(uspan+1)/2,dtype=tf.float32)
+        v = tf.range(start=(-vspan+1)/2,limit=(vspan+1)/2,dtype=tf.float32)
         # U, V -> [hpixels], [wpixels]
 
         u = tf.expand_dims(u, axis=0)
@@ -109,10 +109,14 @@ class Glimpse2D(Can):
         # [b, n, h, w] / [1, n, 1, 1]
         # should sum to 1
 
-        # optimized on 20170405
+        # optimized on 20170405 and 20170407
         # reduce calculations to a minimum
 
-        half_log_one_over_pi_variances = tf.log(1/variances/np.pi)/2
+        oov = 1/variances
+        # half_log_one_over_pi_variances = \
+        #     - tf.log(variances)*0.5 + (np.log(1/np.pi)* 0.5)
+        # log_one_over_pi_var = np.log(1/np.pi) - tf.log(variances)
+        # one_over_pi_variances = (1/np.pi) / variances
 
         # density = tf.exp(\
         #     -(receptor_h-u)**2 / variances + half_log_one_over_pi_variances) * \
@@ -120,9 +124,9 @@ class Glimpse2D(Can):
         #     -(receptor_w-v)**2 / variances + half_log_one_over_pi_variances)
 
         density_u = tf.exp(\
-            -(receptor_h-u)**2 / variances + half_log_one_over_pi_variances)
+            -(receptor_h-u)**2 * oov + np.log(1/np.pi)) * oov
         density_v = tf.exp(\
-            -(receptor_w-v)**2 / variances + half_log_one_over_pi_variances)
+            -(receptor_w-v)**2 * oov) #* sqrt_pi_variances
         # [b, n, h] and [b, n, w]
 
         # density_u = tf.expand_dims(density_u, axis=3)
