@@ -540,7 +540,7 @@ class BatchNorm(Can):
             moving_variance = tf.assign(self.moving_variance,
                 self.moving_variance*(1.-BN_DECAY) + variance*BN_DECAY)
 
-            mean, variance = mean + moving_mean * 1e-10, variance + moving_mean * 1e-10
+            mean, variance = mean + moving_mean * 1e-10, variance + moving_variance * 1e-10
         else:
             # use average when testing(stabilize), don't perform update
             mean, variance = self.moving_mean, self.moving_variance
