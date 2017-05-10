@@ -11,10 +11,11 @@ def one_hot_accuracy(pred,gt):
     return acc
 
 def mean_softmax_cross_entropy(pred,gt):
-    loss = tf.reduce_mean(
-    tf.nn.softmax_cross_entropy_with_logits(logits=pred,labels=gt))
+    return tf.reduce_mean(softmax_cross_entropy(pred,gt))
+
+def softmax_cross_entropy(pred,gt):
     # tf r1.0 : must use named arguments
-    return loss
+    return tf.nn.softmax_cross_entropy_with_logits(logits=pred,labels=gt)
 
 def cross_entropy_loss(pred,gt): # last dim is one_hot
     return - tf.reduce_mean(tf.reduce_sum(loge(pred) * gt, axis=tf.rank(pred)-1))
