@@ -149,6 +149,7 @@ class Can:
             if isinstance(i,list): # if Can accept more than one input
                 x = [tf.placeholder(tf.float32,shape=[None for _ in range(len(j.shape))])
                     for j in i]
+                print('(infer) input is list.')
             else:
                 x = tf.placeholder(tf.float32, shape=[None for _ in range(len(i.shape))])
 
@@ -161,10 +162,10 @@ class Can:
             def inference(k):
                 sess = get_session()
                 if isinstance(i,list):
-                    res = sess.run(y,feed_dict={x[j]:k[j]
-                        for j,_ in enumerate(x)})
+                    res = sess.run([y],feed_dict={x[j]:k[j]
+                        for j,_ in enumerate(x)})[0]
                 else:
-                    res = sess.run(y,feed_dict={x:k})
+                    res = sess.run([y],feed_dict={x:k})[0]
                 return res
             self.inference = inference
 
