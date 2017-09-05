@@ -211,12 +211,19 @@ def variables_summary(var_list):
 
 # you know, MLP
 class Dense(Can):
-    def __init__(self,num_inputs,num_outputs,bias=True):
+    def __init__(self,num_inputs,num_outputs,bias=True,mean=None, stddev=None):
         super().__init__()
-        self.W = self.make_weight([num_inputs,num_outputs],stddev=np.sqrt(2/num_inputs))
+        # for different output unit type, use different noise scales
+        if stddev is None:
+            stddev = 2. # 2 for ReLU, 1 for linear/tanh
+        stddev = np.sqrt(stddev/num_inputs)
+        if mean is None: # mean for bias layer
+            mean = 0.
+
+        self.W = self.make_weight([num_inputs,num_outputs],stddev=stddev)
         self.use_bias = bias
         if bias:
-            self.b = self.make_bias([num_outputs])
+            self.b = self.make_bias([num_outputs],mean=mean)
     def __call__(self,i):
         d = tf.matmul(i,self.W)
         if self.use_bias:
