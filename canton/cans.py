@@ -16,6 +16,8 @@ class Can:
     def __init__(self):
         self.subcans = [] # other cans contained
         self.weights = [] # trainable
+        self.biases = []
+        self.only_weights = []
         self.variables = [] # should save with the weights, but not trainable
         self.updates = [] # update ops, mainly useful for batch norm
         # well, you decide which one to put into
@@ -27,12 +29,14 @@ class Can:
         initial = tf.truncated_normal(shape, mean=mean, stddev=stddev)
         w = tf.Variable(initial,name=name)
         self.weights.append(w)
+        self.only_weights.append(w)
         return w
 
     def make_bias(self,shape,name='b', mean=0.):
         initial = tf.constant(mean, shape=shape)
         b = tf.Variable(initial,name=name)
         self.weights.append(b)
+        self.biases.append(b)
         return b
 
     # make a variable that is not trainable, by passing in a numpy array
@@ -80,6 +84,12 @@ class Can:
     # return weight tensors of current can and it's subcans
     def get_weights(self):
         return self.traverse('weights')
+
+    def get_biases(self):
+        return self.traverse('biases')
+
+    def get_only_weights(self): # dont get biases
+        return self.traverse('only_weights')
 
     # return update operations of current can and it's subcans
     def get_updates(self):
