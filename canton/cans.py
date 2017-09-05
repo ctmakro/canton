@@ -266,10 +266,9 @@ class Reshape(Can):
 
 # you know, nonlinearities
 class Act(Can):
-    def __init__(self,name):
+    def __init__(self,name,alpha=0.2):
         super().__init__()
         def lrelu(i): # fast impl. with only 1 relu
-            alpha = 0.2
             negative = tf.nn.relu(-i)
             res = i + negative * (1.0-alpha)
             return res
