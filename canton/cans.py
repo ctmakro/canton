@@ -26,6 +26,7 @@ class Can:
 
     # by making weight, you create trainable variables
     def make_weight(self,shape,name='W', mean=0., stddev=1e-2):
+        mean,stddev = [float(k) for k in [mean,stddev]]
         initial = tf.truncated_normal(shape, mean=mean, stddev=stddev)
         w = tf.Variable(initial,name=name)
         self.weights.append(w)
@@ -33,6 +34,7 @@ class Can:
         return w
 
     def make_bias(self,shape,name='b', mean=0.):
+        mean = float(mean)
         initial = tf.constant(mean, shape=shape)
         b = tf.Variable(initial,name=name)
         self.weights.append(b)
@@ -231,6 +233,20 @@ class Dense(Can):
         else:
             return d
 
+class LayerNormDense(Dense):
+    def __init__(self,*args,**kw):
+        super().__init__(*args,**kw)
+        nop = args[1]
+        self.layernorm = self.add(LayerNorm(nop))
+
+    def __call__(self,i):
+        d = tf.matmul(i,self.W)
+        d = self.layernorm(d)
+        if self.use_bias:
+            return d + self.b
+        else:
+            return d
+
 # apply Dense on last dimension of 1d input. equivalent to 1x1 conv1d.
 class TimeDistributedDense(Dense):
     def __call__(self,i):
@@ -255,6 +271,20 @@ class LastDimDense(Dense):
         d = tf.shape(i)[1]
         i = tf.reshape(i,tf.concat([fore,[d]],axis=0)) # shape back
         return i
+
+# expand last dimension by a branching factor. Expect input of shape [Batch Dims]
+class Expansion(Can):
+    def __init__(self,nip,factor,stddev=1):
+        super().__init__()
+        self.nip = nip; self.factor = factor; self.nop = nip*factor
+        self.W = self.make_weight([nip,factor],stddev=stddev)
+        self.b = self.make_bias([nip*factor])
+
+    def __call__(self,i):
+        # input: [Batch Dimin] weight: [Dimin Factor] output: [Batch Dimin Factor]
+        result = tf.einsum('bi,if->bif', i, self.W)
+        result = tf.reshape(result,[-1,self.nop])
+        return result + self.b
 
 # you know, shorthand
 class Lambda(Can):
@@ -564,3 +594,23 @@ class BatchNorm(Can):
 
         x = tf.nn.batch_normalization(x, mean, variance, self.beta, self.gamma, BN_EPSILON)
         return x
+
+# layer normalization on last axis of input.
+class LayerNorm(Can):
+    def __init__(self,nop):
+        super().__init__()
+        # learnable
+        self.alpha = self.make_bias([],mean=1)
+        self.beta = self.make_bias([],mean=0)
+
+    def __call__(self,x): # x -> [N, C]
+        axis = len(x.get_shape())-1
+        # reduced mean and var(of activations) of each channel.
+        mean, var = tf.nn.moments(x, [axis], keep_dims=True) # of shape [N,1] and [N,1]
+        # mean, var = [tf.expand_dims(k, -1) for k in [mean,var]]
+        var = tf.maximum(var,1e-7)
+        stddev = tf.sqrt(var)
+        # apply
+        normalized = self.alpha * (x-mean) / stddev + self.beta
+        # normalized = (x-mean)/stddev
+        return normalized
