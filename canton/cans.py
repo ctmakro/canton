@@ -352,8 +352,10 @@ class Conv2D(Can):
     # nip and nop: input and output planes
     # k: dimension of kernel, 3 for 3x3, 5 for 5x5
     # rate: atrous conv rate, 1 = not, 2 = skip one
-    def __init__(self,nip,nop,k,std=1,usebias=True,rate=1,padding='SAME'):
+    def __init__(self,nip,nop,k,std=1,usebias=True,rate=1,padding='SAME',stddev=None):
         super().__init__()
+        if stddev is None:
+            stddev = 2. # 2 for ReLU, 1 for linear/tanh
         if rate>1 and std>1:
             raise('atrous rate can\'t also be greater \
                 than one when stride is already greater than one.')
@@ -361,7 +363,7 @@ class Conv2D(Can):
         self.nip,self.nop,self.k,self.std,self.usebias,self.padding,self.rate\
         = nip,nop,k,std,usebias,padding,rate
 
-        self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(2/(nip*k*k))) # assume square window
+        self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(stddev/(nip*k*k))) # assume square window
         if usebias==True:
             self.b =self.make_bias([nop])
 
