@@ -309,6 +309,13 @@ class Act(Can):
             negative = tf.nn.relu(-i)
             res = i + negative * (1.0-alpha)
             return res
+
+        def selu(x):
+            # https://arxiv.org/pdf/1706.02515.pdf
+            alpha = 1.6732632423543772848170429916717
+            scale = 1.0507009873554804934193349852946
+            return scale*tf.where(x>=0.0, x, alpha*tf.nn.elu(x))
+
         activations = {
             'relu':tf.nn.relu,
             'tanh':tf.tanh,
@@ -317,6 +324,7 @@ class Act(Can):
             'elu':tf.nn.elu,
             'lrelu':lrelu,
             'softplus':tf.nn.softplus,
+            'selu':selu,
         }
         self.set_function(activations[name])
 
