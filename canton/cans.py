@@ -316,6 +316,9 @@ class Act(Can):
             scale = 1.0507009873554804934193349852946
             return scale*tf.where(x>=0.0, x, alpha*tf.nn.elu(x))
 
+        def swish(x):
+            return x*tf.sigmoid(x) # beta=1 case
+
         activations = {
             'relu':tf.nn.relu,
             'tanh':tf.tanh,
@@ -325,6 +328,7 @@ class Act(Can):
             'lrelu':lrelu,
             'softplus':tf.nn.softplus,
             'selu':selu,
+            'swish':swish,
         }
         self.set_function(activations[name])
 
