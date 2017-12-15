@@ -25,9 +25,12 @@ class Can:
         self.inference = None
 
     # by making weight, you create trainable variables
-    def make_weight(self,shape,name='W', mean=0., stddev=1e-2):
+    def make_weight(self,shape,name='W', mean=0., stddev=1e-2, initializer=None):
         mean,stddev = [float(k) for k in [mean,stddev]]
-        initial = tf.truncated_normal(shape, mean=mean, stddev=stddev)
+        if initializer is None:
+            initial = tf.truncated_normal(shape, mean=mean, stddev=stddev)
+        else:
+            initial = initializer
         w = tf.Variable(initial,name=name)
         self.weights.append(w)
         self.only_weights.append(w)
@@ -213,7 +216,7 @@ def variables_summary(var_list):
 
 # you know, MLP
 class Dense(Can):
-    def __init__(self,num_inputs,num_outputs,bias=True,mean=None, stddev=None):
+    def __init__(self,num_inputs,num_outputs,bias=True,mean=None, stddev=None, initializer=None):
         super().__init__()
         # for different output unit type, use different noise scales
         if stddev is None:
@@ -222,7 +225,7 @@ class Dense(Can):
         if mean is None: # mean for bias layer
             mean = 0.
 
-        self.W = self.make_weight([num_inputs,num_outputs],stddev=stddev)
+        self.W = self.make_weight([num_inputs,num_outputs],stddev=stddev,initializer=initializer)
         self.use_bias = bias
         if bias:
             self.b = self.make_bias([num_outputs],mean=mean)
