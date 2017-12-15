@@ -441,9 +441,9 @@ class GRU_onepass(Can):
         super().__init__()
         # assume input has dimension num_in.
         self.num_in,self.num_h = num_in, num_h
-        self.wz = Dense(num_in+num_h,num_h,stddev=1.6)
-        self.wr = Dense(num_in+num_h,num_h,stddev=1.6)
-        self.w = Dense(num_in+num_h,num_h,stddev=1.6)
+        self.wz = Dense(num_in+num_h,num_h,stddev=1,mean=-1) # forget less
+        self.wr = Dense(num_in+num_h,num_h,stddev=1)
+        self.w = Dense(num_in+num_h,num_h,stddev=1)
         self.incan([self.wz,self.wr,self.w])
         # http://colah.github.io/posts/2015-08-Understanding-LSTMs/
 
