@@ -469,9 +469,9 @@ class GRU2_onepass(Can):
         super().__init__()
         # assume input has dimension num_in.
         self.num_in,self.num_h,self.rect = num_in, num_h, Act('tanh')
-        self.wz = Dense(num_h,num_h,stddev=1)
         if double==False:
             self.w = Dense(num_in+num_h,num_h,stddev=1.5)
+            self.wz = Dense(num_h,num_h,stddev=1)
         else:
             c = Can()
             c.add(Dense(num_in+num_h,int(num_h/2),stddev=1.5))
@@ -479,6 +479,12 @@ class GRU2_onepass(Can):
             c.add(Dense(int(num_h/2),num_h,stddev=1.5))
             c.chain()
             self.w = c
+            c = Can()
+            c.add(Dense(num_h,int(num_h/2),stddev=1.5))
+            c.add(Act('lrelu'))
+            c.add(Dense(int(num_h/2),num_h,stddev=1.5))
+            c.chain()
+            self.wz = c
         self.incan([self.wz,self.w])
 
     def __call__(self,i):
