@@ -1,6 +1,6 @@
 from .cans import Can, Conv2D, Dense, LayerNormDense, TimeDistributedDense, LastDimDense, Expansion, Reshape, Up2D, BatchNorm, LayerNorm, Drop
 
-from .cans import AvgPool2D, MaxPool2D, ResConv, GRU, GRUConv2D, Lambda, Act, Scanner, BatchScanner, rnn_gen
+from .cans import AvgPool2D, MaxPool2D, ResConv, RNN,GRU,GRU2,GRULN, GRUConv2D, Lambda, Act, Scanner, BatchScanner, rnn_gen
 
 from .cans2 import GRU_Glimpse2D, Glimpse2D
 

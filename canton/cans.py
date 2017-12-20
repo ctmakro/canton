@@ -460,6 +460,67 @@ class GRU_onepass(Can):
         h_new = (1-z) * hidden + z * h_c
         return h_new
 
+# GRU2 as reported in *Gate-Variants of Gated Recurrent Unit (GRU) Neural Networks*
+# the gates are now only driven by hidden state.
+# mod: removed reset gate.
+# conclusion 20171220: GRU2(without reset gate) is almost as good as GRU.
+class GRU2_onepass(Can):
+    def __init__(self,num_in,num_h,double=False):
+        super().__init__()
+        # assume input has dimension num_in.
+        self.num_in,self.num_h,self.rect = num_in, num_h, Act('tanh')
+        self.wz = Dense(num_h,num_h,stddev=1)
+        if double==False:
+            self.w = Dense(num_in+num_h,num_h,stddev=1.5)
+        else:
+            c = Can()
+            c.add(Dense(num_in+num_h,int(num_h/2),stddev=1.5))
+            c.add(Act('lrelu'))
+            c.add(Dense(int(num_h/2),num_h,stddev=1.5))
+            c.chain()
+            self.w = c
+        self.incan([self.wz,self.w])
+
+    def __call__(self,i):
+        # assume hidden, input is of shape [batch,num_h] and [batch,num_in]
+        hidden = i[0]
+        inp = i[1]
+        wz,w = self.wz,self.w
+        # dims = tf.rank(inp)
+        z = tf.sigmoid(wz(hidden))
+        h_c = self.rect(w(tf.concat([hidden,inp],axis=1)))
+        h_new = (1-z) * hidden + z * h_c
+        return h_new
+
+# vanilla RNN
+class RNN_onepass(Can):
+    def __init__(self,num_in,num_h,nonlinearity=Act('tanh'),stddev=1):
+        super().__init__()
+        # assume input has dimension num_in.
+        self.num_in,self.num_h,self.rect = num_in, num_h, nonlinearity
+        self.w = Dense(num_in+num_h,num_h,stddev=stddev)
+        self.incan([self.w,self.rect])
+
+    def __call__(self,i):
+        # assume hidden, input is of shape [batch,num_h] and [batch,num_in]
+        hidden = i[0]
+        inp = i[1]
+        c = tf.concat([hidden,inp],axis=1)
+        w = self.w
+        h_new = self.rect(w(c))
+        return h_new
+
+# same but with LayerNorm-ed Dense layers
+class GRU_LN_onepass(GRU_onepass):
+    def __init__(self,num_in,num_h):
+        Can.__init__(self)
+        # assume input has dimension num_in.
+        self.num_in,self.num_h = num_in, num_h
+        self.wz = LayerNormDense(num_in+num_h,num_h,bias=True)
+        self.wr = LayerNormDense(num_in+num_h,num_h,bias=True)
+        self.w = LayerNormDense(num_in+num_h,num_h,bias=True)
+        self.incan([self.wz,self.wr,self.w])
+
 # single forward pass version of GRUConv2D.
 class GRUConv2D_onepass(GRU_onepass): # inherit the __call__ method
     def __init__(self,num_in,num_h,*args,**kwargs):
@@ -498,7 +559,10 @@ def rnn_gen(name, one_pass_class):
     return RNN
 
 # you know, Despicable Me
+RNN = rnn_gen('RNN', RNN_onepass)
 GRU = rnn_gen('GRU', GRU_onepass)
+GRU2 = rnn_gen('GRU2', GRU2_onepass)
+GRULN = rnn_gen('GRULN', GRU_LN_onepass)
 GRUConv2D = rnn_gen('GRUConv2D', GRUConv2D_onepass)
 
 # you know, LeNet
