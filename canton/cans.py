@@ -400,6 +400,19 @@ class Up2D(Can):
         newsize = [s[1]*scale,s[2]*scale]
         return tf.image.resize_nearest_neighbor(i, size=newsize, align_corners=None, name=None)
 
+# assume padding == 'SAME'.
+class Deconv2D(Conv2D):
+    def __call__(self,i):
+        if self.usebias == True: i -= self.b
+        
+        s = tf.shape(i)
+        return tf.nn.conv2d_transpose(
+            i,
+            self.W,
+            output_shape=[s[0], s[1]*self.std, s[2]*self.std, self.nip],
+            strides=[1, self.std, self.std, 1],
+        )
+
 # you know, recurrency
 class Scanner(Can):
     def __init__(self,f):
