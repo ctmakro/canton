@@ -391,6 +391,98 @@ class Conv2D(Can):
         else:
             return c
 
+class DepthwiseConv2D(Conv2D):
+    def __init__(self, nip, nop, stddev=None,*a,**k):
+        if stddev is None:
+            stddev = 2. # 2 for ReLU, 1 for linear/tanh
+        stddev *= nip # scale for depthwise convolution
+        super().__init__(nip=nip, nop=nop, stddev=stddev,*a,**k)
+    def __call__(self,i):
+        c = tf.nn.depthwise_conv2d(i,self.W,
+                strides=[1, self.std, self.std, 1],
+                padding=self.padding,
+                rate=[self.rate, self.rate],
+                )
+
+        if self.usebias==True:
+            return c + self.b
+        else:
+            return c
+
+class GroupConv2D(Can):
+    def __init__(self,nip,nop,k,num_groups,*a,**kw):
+        super().__init__()
+        assert nip % num_groups == 0
+        assert nop % num_groups == 0
+        self.num_groups = num_groups
+        self.nipg = nip//num_groups
+        self.nopg = nop//num_groups
+
+        self.groups = [Conv2D(self.nipg, self.nopg, k, *a, **kw) for i in range(num_groups)]
+        self.incan(self.groups)
+
+    def __call__(self,i):
+        out = []
+        for idx, conv in enumerate(self.groups):
+            inp = i[:, :, :, idx * self.nipg:(idx+1)*self.nipg]
+            out.append(conv(inp))
+        return tf.concat(out, axis=-1)
+
+class ChannelShuffle(Can): # shuffle the last dimension
+    def __init__(self, nip, num_groups):
+        super().__init__()
+        assert nip % num_groups == 0
+        self.nip = nip
+        self.num_groups = num_groups
+        self.nipg = nip//num_groups
+
+    def __call__(self, i):
+        orig_shape = tf.shape(i)
+        reshaped = tf.reshape(i, [-1, self.num_groups, self.nipg])
+        transposed = tf.transpose(reshaped, perm=[0,2,1])
+        output = tf.reshape(reshaped, orig_shape)
+        return output
+
+class ShuffleNet(Can):
+    def __init__(self, nip, nop, num_groups):
+        super().__init__()
+        if nip==nop:
+            self.std = 1
+        elif nip*2 == nop:
+            self.std = 2
+        else:
+            raise Exception('shufflenet unit accept only nip==nop or nip*2==nop.')
+
+        assert nip % num_groups == 0
+        self.num_groups = num_groups
+        self.nipg = nip//num_groups
+
+        bottleneck_width = nip//4
+
+        self.gc1 = GroupConv2D(nip, bottleneck_width, k=3, num_groups=num_groups, stddev=2)
+
+        self.cs = ChannelShuffle(bottleneck_width, num_groups=num_groups)
+        self.dc = DepthwiseConv2D(bottleneck_width,1, k=3, std=self.std)
+        self.gc2 = GroupConv2D(bottleneck_width, nip, k=3, num_groups=num_groups, stddev=1)
+
+        self.incan([self.gc1, self.cs, self.dc, self.gc2])
+
+    def __call__(self, i):
+        residual = i
+
+        i = self.gc1(i)
+        i = Act('relu')(i)
+        i = self.cs(i)
+        i = self.dc(i)
+        i = self.gc2(i)
+
+        if self.std == 1: # dont grow feature map
+            out = residual + i
+        else: # grow 2x by concatenation
+            residual = AvgPool2D(k=3, std=2)(residual)
+            out = tf.concat([residual, i], axis=-1)
+        return Act('relu')(out)
+
 # upsampling 2d
 class Up2D(Can):
     def __init__(self, scale=2):
