@@ -209,3 +209,44 @@ class GRU_Glimpse2D_onepass(Can):
         return offsets
 
 GRU_Glimpse2D = rnn_gen('GG2D', GRU_Glimpse2D_onepass)
+
+class PermutedConv2D(Can):
+    def __init__(self, nip, nop, bottleneck_width, seed, k=3, std=1, *a, **w):
+        super().__init__()
+        self.nip, self.nop, self.bnw = nip, nop, bottleneck_width
+        assert nip >= self.bnw
+        assert nop >= nip
+        self.num_output_padding = nop - nip
+
+        self.conv = self.add(Conv2D(self.bnw, self.bnw, k=k, std=std, stddev=.5, *a, **w))
+        self.seed = seed
+
+        from numpy.random import RandomState
+        prng = RandomState(self.seed)
+
+        if self.num_output_padding>0:
+            self.io_permtable = prng.randint(self.nip, size = [self.num_output_padding])
+
+        self.offset = prng.randint(self.nip-self.bnw+1)
+        self.bo_permtable = prng.randint(self.bnw, size = [self.nop])
+
+    def __call__(self, i):
+        # assume [NHWC]
+        s = tf.shape(i)
+
+        residual = i
+
+        if self.conv.std>1:
+            residual  = AvgPool2D(k=self.conv.k, std=self.conv.std)(residual)
+
+        if self.num_output_padding > 0:
+            residual_pad = tf.gather(residual, self.io_permtable, axis=3)
+            residual = tf.concat([residual, residual_pad], axis=3)
+
+        piece = i[:,:,:, self.offset: self.offset + self.bnw]
+        piece = self.conv(piece)
+        piece = Act('lrelu')(piece)
+
+        scattered = tf.gather(piece, self.bo_permtable, axis=3)
+        result = scattered + residual*0.707
+        return result
