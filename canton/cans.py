@@ -791,14 +791,15 @@ class BatchNorm(Can):
 
 # layer normalization on last axis of input.
 class LayerNorm(Can):
-    def __init__(self,nop):
+    def __init__(self,nop=None):
         super().__init__()
         # learnable
         self.alpha = self.make_bias([],mean=1)
         self.beta = self.make_bias([],mean=0)
 
     def __call__(self,x): # x -> [N, C]
-        axis = len(x.get_shape())-1
+        # axis = len(x.get_shape())-1
+        axis = tf.rank(x)-1
         # reduced mean and var(of activations) of each channel.
         mean, var = tf.nn.moments(x, [axis], keep_dims=True) # of shape [N,1] and [N,1]
         # mean, var = [tf.expand_dims(k, -1) for k in [mean,var]]
@@ -807,4 +808,12 @@ class LayerNorm(Can):
         # apply
         normalized = self.alpha * (x-mean) / stddev + self.beta
         # normalized = (x-mean)/stddev
+        return normalized
+
+class InstanceNorm(LayerNorm): # for images
+    def __call__(self, x):
+        mean, var = tf.nn.moments(x, [1,2], keep_dims=True)
+        var = var + 1e-8
+        stddev = tf.sqrt(var)
+        normalized = self.alpha * (x-mean) / stddev + self.beta
         return normalized
