@@ -312,6 +312,8 @@ class Act(Can):
             negative = tf.nn.relu(-i)
             res = i + negative * (1.0-alpha)
             return res
+        def lrelu(i):
+            return tf.nn.leaky_relu(i, alpha)
 
         def selu(x):
             # https://arxiv.org/pdf/1706.02515.pdf
