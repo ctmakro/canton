@@ -334,6 +334,7 @@ class Act(Can):
             'softplus':tf.nn.softplus,
             'selu':selu,
             'swish':swish,
+            'relu6':tf.nn.relu6,
         }
         self.set_function(activations[name])
 
@@ -498,7 +499,7 @@ class Up2D(Can):
 class Deconv2D(Conv2D):
     def __call__(self,i):
         if self.usebias == True: i -= self.b
-        
+
         s = tf.shape(i)
         return tf.nn.conv2d_transpose(
             i,
