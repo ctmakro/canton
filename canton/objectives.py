@@ -10,6 +10,11 @@ def one_hot_accuracy(pred,gt):
     acc = tf.reduce_mean(tf.cast(correct_vector,tf.float32))
     return acc
 
+def class_accuracy(pred,lbl):
+    correct_vector = tf.equal(tf.argmax(pred,1,output_type=tf.int32), lbl)
+    acc = tf.reduce_mean(tf.cast(correct_vector,tf.float32))
+    return acc
+
 def mean_softmax_cross_entropy(pred,gt):
     return tf.reduce_mean(softmax_cross_entropy(pred,gt))
 
