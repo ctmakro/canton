@@ -373,7 +373,13 @@ class Conv2D(Can):
         self.nip,self.nop,self.k,self.std,self.usebias,self.padding,self.rate\
         = nip,nop,k,std,usebias,padding,rate
 
-        self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(stddev/(nip*k*k))) # assume square window
+        self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(stddev/(nip*k*k)))
+        # self.W = self.make_weight([k,k,nip,nop],stddev=np.sqrt(stddev/(nip*k*k)),
+        #     initializer = tf.contrib.framework.convolutional_delta_orthogonal(
+        #         gain = stddev, dtype=tf.float32,
+        #     )(shape=[k,k,nip,nop])
+        # )
+        # assume square window
         if usebias==True:
             self.b =self.make_bias([nop])
 
